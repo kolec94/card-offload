@@ -25,3 +25,11 @@ Carthage/Build/
 # Fastlane
 fastlane/report.xml
 fastlane/screenshots/**/*.png
+
+# fastlane
+fastlane/Preview.html
+fastlane/test_output/
+vendor/bundle/
+*.mobileprovision
+*.p8
+*.p12

@@ -1,0 +1,92 @@
+name: TestFlight
+
+# Builds a signed Release build and uploads it to TestFlight, entirely on GitHub's
+# macOS runners. Requires the four repository secrets listed in the README.
+#
+# The upload is manual on purpose: it is triggered from the Actions tab rather than
+# on every push, so a stray commit never burns a build number.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "fastlane/**"
+      - "Gemfile"
+      - ".github/workflows/testflight.yml"
+
+jobs:
+  # Runs on every change to the fastlane config, without needing any credentials,
+  # so a syntax error surfaces here rather than halfway through a signed build.
+  validate:
+    name: Validate fastlane config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: List lanes
+        run: bundle exec fastlane lanes
+        env:
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+
+  upload:
+    name: Upload to TestFlight
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check credentials are configured
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64 APPLE_TEAM_ID; do
+            eval "value=\$$name"
+            if [ -z "$value" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            echo "The README's TestFlight section explains where each value comes from."
+            exit 1
+          fi
+          echo "All four credentials are present."
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Build and upload
+        run: bundle exec fastlane beta
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BUNDLE_ID: ${{ vars.BUNDLE_ID }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
+
+      - name: Keep the logs when it goes wrong
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs
+          path: |
+            ~/Library/Logs/gym
+            ~/Library/Logs/fastlane
+          if-no-files-found: ignore
+          retention-days: 7

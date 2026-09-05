@@ -1,0 +1,3 @@
+# Overridable so the bundle identifier can be changed with a repository variable
+# rather than by editing the project file.
+app_identifier(ENV["BUNDLE_ID"].to_s.empty? ? "io.github.kolec94.cardoffload" : ENV["BUNDLE_ID"])

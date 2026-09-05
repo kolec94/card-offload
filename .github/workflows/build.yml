@@ -45,6 +45,25 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             clean build
 
+      - name: Check submission requirements
+        run: |
+          APP="DerivedData/Build/Products/Release-iphoneos/CardOffload.app"
+          # A non-standard INFOPLIST_KEY_ has to actually reach the built plist, or
+          # every TestFlight build stalls on a manual export-compliance question.
+          compliance=$(plutil -extract ITSAppUsesNonExemptEncryption raw -o - "$APP/Info.plist")
+          if [ "$compliance" != "false" ]; then
+            echo "::error::ITSAppUsesNonExemptEncryption is '$compliance', expected 'false'"
+            exit 1
+          fi
+          # App Store Connect rejects a build with no icon.
+          if ! ls "$APP"/AppIcon*.png >/dev/null 2>&1; then
+            echo "::error::No app icon was compiled into the bundle"
+            ls "$APP"
+            exit 1
+          fi
+          echo "Export compliance declared; app icon present:"
+          ls "$APP"/AppIcon*.png
+
       - name: Package as .ipa
         run: |
           APP="DerivedData/Build/Products/Release-iphoneos/CardOffload.app"
