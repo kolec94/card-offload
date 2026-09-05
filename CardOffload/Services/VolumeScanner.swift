@@ -30,7 +30,10 @@ enum VolumeScanner {
         var found: [MediaFile] = []
         var seen = 0
 
-        for case let url as URL in enumerator {
+        // NSEnumerator's Sequence conformance is unavailable from an async context
+        // (a hard error under Swift 6), so step the enumerator by hand.
+        while let entry = enumerator.nextObject() {
+            guard let url = entry as? URL else { continue }
             try Task.checkCancellation()
             seen += 1
             if seen % 100 == 0 {
