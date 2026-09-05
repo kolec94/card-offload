@@ -91,18 +91,49 @@ Apple ID as they install it, which is why shipping it unsigned is fine.
    |---|---|---|
    | **[Sideloadly](https://sideloadly.io)** | Windows/Linux app; plug the phone in, drop in the `.ipa`, enter your Apple ID | Simplest one-off install |
    | **[AltStore Classic](https://altstore.io)** | AltServer runs on a Windows PC and re-signs the app over Wi-Fi automatically | Set-and-forget — worth it if you have a machine that stays on |
-   | **[SideStore](https://sidestore.io)** | AltStore fork that refreshes *on the phone itself*, no PC needed after pairing | No always-on PC |
+   | **[SideStore](https://sidestore.io)** | AltStore fork that refreshes *on the phone itself* — the PC is needed once, during setup | **Recommended.** Travelling without a laptop |
 
-   All three need Apple's own iTunes and iCloud builds on Windows (the Microsoft Store versions
-   don't expose the drivers they need).
+   Sideloadly and AltStore need Apple's own iTunes *and* iCloud builds on Windows — uninstall the
+   Microsoft Store versions first, they don't expose the drivers. SideStore accepts either.
 
 3. **Trust it.** On the phone: **Settings → General → VPN & Device Management** → trust your
    developer certificate.
 
-A free Apple ID gives 7-day signing and a limit of 3 sideloaded apps; AltStore and SideStore
-re-sign before it lapses. A paid developer account ($99/yr) stretches it to a year. This app uses
-no special entitlements — no iCloud, no App Groups — so free-Apple-ID signing works without any
-of the usual sideloading caveats.
+A free Apple ID gives 7-day signing and a limit of 3 sideloaded apps at once; AltStore and
+SideStore re-sign before that lapses. A paid developer account ($99/yr) stretches it to a year.
+This app uses no special entitlements — no iCloud, no App Groups — so free-Apple-ID signing works
+without any of the usual sideloading caveats.
+
+#### The SideStore route, step by step
+
+Worth the extra setup because the 7-day expiry otherwise bites exactly when you're away from the
+PC with a full card. SideStore refreshes itself over any internet connection, so the laptop can
+stay at home. Needs iOS 15+ (this app needs 17+ anyway) and a passcode set on the device; 32-bit
+Windows and Windows 10 on Arm are not supported.
+
+1. On the PC, install **iTunes** (either the Microsoft Store or the Apple.com build) and then
+   **[iloader](https://iloader.app)** — take the `.msi`.
+2. Plug the phone in over USB, trust the computer, enter the passcode.
+3. In iloader: sign in with your Apple Account, pick the device, choose **Install SideStore
+   (Stable)**.
+4. On the phone: **Settings → General → VPN & Device Management** → under *Developer App*, tap
+   your Apple Account and trust it. Then **Settings → Privacy & Security → Developer Mode** → on;
+   the phone restarts.
+5. Install **LocalDevVPN** from the App Store and tap **Connect**. It has to be connected any
+   time SideStore installs, updates or refreshes an app — it's how SideStore talks to the device
+   with no computer present. (Older guides say *StosVPN*; it was pulled from the App Store.)
+6. Open SideStore, sign in with the same Apple Account, go to **My Apps**, and tap the
+   **7 DAYS** counter beside SideStore to refresh it once.
+
+The PC is done at this point. To get this app on:
+
+7. In Safari on the phone, open the [latest release](../../releases/latest) and download
+   `CardOffload.ipa` — it lands in Files.
+8. SideStore → **My Apps** → **+** → pick the `.ipa`.
+
+That's two of your three free-account app slots used (SideStore itself, and this). LocalDevVPN
+comes from the App Store, so it doesn't count against them. SideStore re-signs in the background
+before the seven days are up; a refresh keeps your saved folders, a delete-and-reinstall doesn't.
 
 ### If you do get access to a Mac
 
