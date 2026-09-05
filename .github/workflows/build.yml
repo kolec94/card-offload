@@ -1,0 +1,68 @@
+name: Build IPA
+
+# Builds an unsigned .ipa on GitHub's macOS runners, so the app can be built and
+# installed without owning a Mac. Sideloading tools (Sideloadly, AltStore, SideStore)
+# re-sign the payload with your own Apple ID on the way onto the device, so the
+# artifact deliberately ships unsigned.
+#
+# macOS runners are free for public repositories.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build unsigned .ipa
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Build for device
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project CardOffload.xcodeproj \
+            -scheme CardOffload \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      - name: Package as .ipa
+        run: |
+          APP="DerivedData/Build/Products/Release-iphoneos/CardOffload.app"
+          test -d "$APP" || { echo "No .app was produced"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          # An .ipa is just a zip with the .app inside a Payload/ folder.
+          zip -qry CardOffload.ipa Payload
+          ls -lh CardOffload.ipa
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: CardOffload-ipa
+          path: CardOffload.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach .ipa to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CardOffload.ipa
+          generate_release_notes: true

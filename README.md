@@ -31,7 +31,7 @@ deletes anything.
 
 ## What it doesn't do
 
-- No App Store build — you compile and install it yourself (see below).
+- No App Store build — GitHub builds the `.ipa` and you sideload it (see below).
 - No background copying. iOS suspends apps that leave the foreground, so the screen stays on
   (the app disables the idle timer) and you leave it open while it runs.
 - No previews, culling, ratings, or editing. It's an offload tool.
@@ -47,7 +47,7 @@ deletes anything.
 | **Card reader** | Any USB reader iOS mounts in Files |
 | **Drive** | External SSD formatted **APFS, ExFAT, FAT32 or HFS+** |
 | **Hub** | A USB-C hub, ideally **powered** — see below |
-| **To build it** | A Mac with **Xcode 16+** |
+| **To install it** | A Windows/Linux PC and a free Apple ID — **no Mac required**, see below |
 
 ### About power — read this before blaming the app
 
@@ -69,7 +69,39 @@ a paid shoot; turn it off in Settings when you're in a hurry.
 
 ## Installing it
 
-There's no App Store release, so you build it once and install it on your own device.
+There's no App Store release, so the app has to be built and put on the phone yourself.
+**You do not need to own a Mac for this** — GitHub builds it for you.
+
+### Without a Mac (recommended)
+
+macOS build runners are free for public repositories, so
+[the Build IPA workflow](.github/workflows/build.yml) compiles the app on every push and leaves
+an unsigned `CardOffload.ipa` behind as an artifact. Sideloading tools re-sign it with your own
+Apple ID as they install it, which is why shipping it unsigned is fine.
+
+1. **Get the .ipa.** Open the [Actions tab](../../actions/workflows/build.yml), pick the latest
+   green run, and download the `CardOffload-ipa` artifact. (Or push a `v1.0` tag and the workflow
+   attaches the `.ipa` to a GitHub release instead.)
+2. **Install it from Windows or Linux.** Pick one:
+
+   | Tool | How it works | Good for |
+   |---|---|---|
+   | **[Sideloadly](https://sideloadly.io)** | Windows/Linux app; plug the phone in, drop in the `.ipa`, enter your Apple ID | Simplest one-off install |
+   | **[AltStore Classic](https://altstore.io)** | AltServer runs on a Windows PC and re-signs the app over Wi-Fi automatically | Set-and-forget — worth it if you have a machine that stays on |
+   | **[SideStore](https://sidestore.io)** | AltStore fork that refreshes *on the phone itself*, no PC needed after pairing | No always-on PC |
+
+   All three need Apple's own iTunes and iCloud builds on Windows (the Microsoft Store versions
+   don't expose the drivers they need).
+
+3. **Trust it.** On the phone: **Settings → General → VPN & Device Management** → trust your
+   developer certificate.
+
+A free Apple ID gives 7-day signing and a limit of 3 sideloaded apps; AltStore and SideStore
+re-sign before it lapses. A paid developer account ($99/yr) stretches it to a year. This app uses
+no special entitlements — no iCloud, no App Groups — so free-Apple-ID signing works without any
+of the usual sideloading caveats.
+
+### If you do get access to a Mac
 
 ```bash
 git clone https://github.com/kolec94/card-offload.git
@@ -77,18 +109,13 @@ cd card-offload
 open CardOffload.xcodeproj
 ```
 
-Then in Xcode:
+Select the **CardOffload** target → **Signing & Capabilities**, tick **Automatically manage
+signing**, choose your team, change the bundle identifier to something of your own, pick your
+iPhone as the destination, and hit **Run**.
 
-1. Select the **CardOffload** target → **Signing & Capabilities**.
-2. Tick **Automatically manage signing** and choose your team. A free Apple ID works.
-3. Change the bundle identifier to something of your own, e.g. `com.yourname.cardoffload`
-   (the one in the repo is already taken by this project).
-4. Pick your iPhone as the run destination and hit **Run**.
-5. On the phone: **Settings → General → VPN & Device Management** → trust your developer
-   certificate.
-
-With a free Apple ID the app stops launching after 7 days — plug in and re-run to renew it. A
-paid developer account ($99/yr) extends that to a year.
+Other Mac-free routes, if the GitHub Actions path ever doesn't suit: **Codemagic** has a free
+macOS tier and is configured entirely from YAML in the repo, and **MacinCloud** or **Scaleway**
+rent Mac minis by the hour for the rare occasion you want a real Xcode window.
 
 If the project file ever gets mangled, it can be regenerated from `project.yml`:
 
