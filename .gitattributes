@@ -1,0 +1,3 @@
+# The project is built on macOS; keep line endings LF everywhere.
+* text=auto eol=lf
+*.pbxproj text eol=lf
