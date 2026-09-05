@@ -31,7 +31,8 @@ deletes anything.
 
 ## What it doesn't do
 
-- No App Store build — GitHub builds the `.ipa` and you sideload it (see below).
+- No App Store release *yet* — GitHub builds the `.ipa` and you sideload it. A TestFlight/App
+  Store pipeline is wired up and waiting on a paid developer account (see below).
 - No background copying. iOS suspends apps that leave the foreground, so the screen stays on
   (the app disables the idle timer) and you leave it open while it runs.
 - No previews, culling, ratings, or editing. It's an offload tool.
@@ -70,7 +71,9 @@ a paid shoot; turn it off in Settings when you're in a hurry.
 ## Installing it
 
 There's no App Store release, so the app has to be built and put on the phone yourself.
-**You do not need to own a Mac for this** — GitHub builds it for you.
+**You do not need to own a Mac for this** — GitHub builds it for you. Sideloading with a free
+Apple ID costs nothing; [TestFlight and the App Store](#onto-testflight-or-the-app-store) are
+also wired up, and need a paid account.
 
 ### Without a Mac (recommended)
 
@@ -122,6 +125,78 @@ If the project file ever gets mangled, it can be regenerated from `project.yml`:
 ```bash
 brew install xcodegen && xcodegen generate
 ```
+
+### Onto TestFlight, or the App Store
+
+The sideloading route above is free but fiddly: 7-day certificates, a PC in the loop, and a limit
+of three apps. TestFlight removes all of that — installs come through Apple's TestFlight app, last
+90 days, and never need re-signing. The catch is the same for both routes:
+
+| | Sideloading | TestFlight | App Store |
+|---|---|---|---|
+| **Cost** | Free Apple ID | **$99/yr** Developer Program | **$99/yr** Developer Program |
+| **Mac needed** | No | No | No |
+| **Apple review** | None | None for internal testers | Yes, a few days |
+| **Install lasts** | 7 days (or a year, paid) | 90 days per build | Indefinitely |
+| **Who can install** | You | Up to 100 internal testers | Anyone |
+
+There is no way around the $99. Apple gates both TestFlight and the store behind the paid
+programme; free accounts only ever get local sideloading.
+
+What you *don't* need is a Mac. [`.github/workflows/testflight.yml`](.github/workflows/testflight.yml)
+drives [fastlane](fastlane/Fastfile) on GitHub's macOS runners, authenticating with an App Store
+Connect API key — no Apple ID password, no 2FA prompt, nothing interactive.
+
+**One-time setup**
+
+1. **Enrol** at [developer.apple.com/programs](https://developer.apple.com/programs/). Individual
+   enrolment usually clears in a day or two.
+2. **Make an API key.** App Store Connect → **Users and Access → Integrations → App Store
+   Connect API** → **+**, role **App Manager**. The `.p8` file downloads exactly once — keep it.
+3. **Add four repository secrets** under **Settings → Secrets and variables → Actions**:
+
+   | Secret | Where it comes from |
+   |---|---|
+   | `ASC_KEY_ID` | The **Key ID** column next to the key you just made |
+   | `ASC_ISSUER_ID` | **Issuer ID**, at the top of the same page |
+   | `ASC_KEY_P8_BASE64` | The `.p8`, base64-encoded (below) |
+   | `APPLE_TEAM_ID` | Ten characters, from **Membership details** on the developer site |
+
+   In PowerShell:
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\Downloads\AuthKey_XXXXXXXXXX.p8")) | Set-Clipboard
+   ```
+
+   To use your own bundle identifier instead of `io.github.kolec94.cardoffload`, add a repository
+   *variable* (not secret) named `BUNDLE_ID`. Nothing in the project file needs editing.
+4. **Create the app record.** Actions → **TestFlight** → **Run workflow**, lane **`setup_app`**.
+   It registers the bundle ID and creates the App Store Connect entry, and is safe to re-run.
+
+**Every release after that**
+
+Actions → **TestFlight** → **Run workflow**, lane **`beta`**. The run fetches a distribution
+certificate and provisioning profile, builds a signed Release, and uploads it. The build number
+is the workflow run number, so it always climbs and App Store Connect never rejects a repeat.
+It's deliberately manual rather than on-push, so a stray commit doesn't burn a build number.
+
+Then in App Store Connect → **TestFlight**, add yourself as an internal tester and install from
+the TestFlight app on the phone. Internal testing needs no review at all. External testers (up to
+10,000, by public link) do get a light first-build review — flip `distribute_external` in the
+Fastfile once such a group exists.
+
+**Going all the way to the store** needs more than a build: screenshots for a 6.9" iPhone and, as
+this is a universal app, a 13" iPad; description, keywords, support URL and a privacy policy URL;
+App Privacy answers (this app collects nothing and phones nothing home, so every question is
+"Data Not Collected"); an age rating; and then review.
+
+Two review details are already handled in the build: the app declares
+`ITSAppUsesNonExemptEncryption = false` — SHA-256 verification is hashing, not encryption, so no
+compliance documentation is owed — and it ships a real 1024px icon, without which submission is
+rejected outright. Both are asserted by a check in the build workflow, so they can't quietly
+regress. The one thing worth pre-empting in the review notes is **Guideline 4.2 (minimum
+functionality)**: single-purpose utilities get questioned, so explain the camera-card workflow
+and why it isn't something the Files app already does.
 
 ---
 

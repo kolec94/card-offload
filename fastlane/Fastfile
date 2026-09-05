@@ -6,20 +6,44 @@ PROJECT = "CardOffload.xcodeproj"
 SCHEME  = "CardOffload"
 DEFAULT_BUNDLE_ID = "io.github.kolec94.cardoffload"
 
+# API-key auth means no Apple ID password, no 2FA prompt, and nothing interactive -
+# which is what makes this work on a runner with no Mac behind it.
+def asc_api_key
+  app_store_connect_api_key(
+    key_id:                ENV.fetch("ASC_KEY_ID"),
+    issuer_id:             ENV.fetch("ASC_ISSUER_ID"),
+    key_content:           ENV.fetch("ASC_KEY_P8_BASE64"),
+    is_key_content_base64: true
+  )
+end
+
+def resolved_bundle_id
+  ENV["BUNDLE_ID"].to_s.empty? ? DEFAULT_BUNDLE_ID : ENV["BUNDLE_ID"]
+end
+
 platform :ios do
+  desc "One-time: register the bundle ID and create the App Store Connect record"
+  lane :setup_app do
+    api_key = asc_api_key
+    bundle_id = resolved_bundle_id
+
+    # Idempotent: produce reports "already exists" and moves on, so re-running
+    # this after the app record exists is harmless.
+    create_app_online(
+      api_key:        api_key,
+      app_identifier: bundle_id,
+      app_name:       "Card Offload",
+      language:       "English (U.K.)",
+      sku:            bundle_id,
+      team_id:        ENV.fetch("APPLE_TEAM_ID")
+    )
+  end
+
   desc "Build a signed Release build and push it to TestFlight"
   lane :beta do
-    # API-key auth means no Apple ID password, no 2FA prompt, and nothing
-    # interactive - which is what makes this work on a runner with no Mac behind it.
-    api_key = app_store_connect_api_key(
-      key_id:                ENV.fetch("ASC_KEY_ID"),
-      issuer_id:             ENV.fetch("ASC_ISSUER_ID"),
-      key_content:           ENV.fetch("ASC_KEY_P8_BASE64"),
-      is_key_content_base64: true
-    )
-
+    api_key   = asc_api_key
     team_id   = ENV.fetch("APPLE_TEAM_ID")
-    bundle_id = ENV["BUNDLE_ID"].to_s.empty? ? DEFAULT_BUNDLE_ID : ENV["BUNDLE_ID"]
+    bundle_id = resolved_bundle_id
 
     # Throwaway keychain for the signing certificate to live in. No-op off CI.
     setup_ci

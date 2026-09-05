@@ -8,6 +8,14 @@ name: TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      lane:
+        description: "Which fastlane lane to run"
+        type: choice
+        default: beta
+        options:
+          - beta        # build and upload to TestFlight
+          - setup_app   # one-time: register the bundle ID and create the app record
   push:
     branches: [main]
     paths:
@@ -36,7 +44,7 @@ jobs:
           FASTLANE_SKIP_UPDATE_CHECK: "1"
 
   upload:
-    name: Upload to TestFlight
+    name: Run fastlane on a Mac runner
     if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: macos-15
@@ -69,8 +77,8 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
-      - name: Build and upload
-        run: bundle exec fastlane beta
+      - name: Run the lane
+        run: bundle exec fastlane ${{ inputs.lane }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
